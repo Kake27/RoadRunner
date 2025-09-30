@@ -20,10 +20,15 @@ export default function PhaserGame() {
         private lanes = [650, 778, 900]
         private currentLane = 1
 
+        private enemyCars!: Phaser.Physics.Arcade.Group;
+        private lastSpawnTime = 0;
+
         preload() {
           this.load.image("background", "assets/bg.png")
           this.load.image("racecar", "assets/player/player.png");
           this.load.image("road", "assets/test.png")
+
+          this.load.image("enemy", "assets/vehicles/yellow_wagon.png")
         }
         create() {
             
@@ -34,7 +39,7 @@ export default function PhaserGame() {
 
 
             this.car = this.physics.add.image(780, 500, "racecar");
-            this.car.setScale(1.5)
+            this.car.setScale(1.25)
             this.car.setCollideWorldBounds(true)
 
             this.cursors = this.input.keyboard?.createCursorKeys() ?? {
@@ -49,18 +54,16 @@ export default function PhaserGame() {
                 down: Phaser.Input.Keyboard.KeyCodes.S,
                 left: Phaser.Input.Keyboard.KeyCodes.A,
                 right: Phaser.Input.Keyboard.KeyCodes.D,
-          });
+            });
+
+            this.enemyCars = this.physics.add.group();
+            this.physics.add.overlap(this.car, this.enemyCars, this.handleCrash, undefined, this)
         }
 
-        update() {
+        update(time: number, delta: number) {
+            // movement
             this.road1.tilePositionY -= 2;    
             this.road2.tilePositionY -= 2;
-
-            // this.car.setVelocity(0)
-
-            if(this.cursors.up?.isDown || this.wasd.up.isDown) {
-                this.car.setVelocityY(-300)
-            }
 
             if (Phaser.Input.Keyboard.JustDown(this.cursors.left) || Phaser.Input.Keyboard.JustDown(this.cursors.left)) {
               if(this.currentLane>0) {
@@ -75,6 +78,17 @@ export default function PhaserGame() {
                 this.moveToLane(this.currentLane)
               }
             }
+
+            //spawn cars
+            if(time>this.lastSpawnTime+2500) {
+              this.spawnEnemies()
+              this.lastSpawnTime = time;
+            }
+
+            this.enemyCars.getChildren().forEach((enemy: any) => {
+              if(enemy.y>700) enemy.destroy();
+            })
+
         }
 
         moveToLane(laneIndex: number) {
@@ -107,6 +121,28 @@ export default function PhaserGame() {
             }
 
           })
+        }
+
+        spawnEnemies() {
+          const availableLanes = [...this.lanes]
+          Phaser.Utils.Array.Shuffle(availableLanes)
+
+          const cars = Phaser.Math.Between(1,2)
+
+          for (let i = 0; i < cars; i++) {
+            const laneX = availableLanes.pop()!;
+            const speed = Phaser.Math.Between(50, 100);
+
+            const enemy = this.enemyCars.create(laneX, -100, "enemy") as Phaser.Types.Physics.Arcade.ImageWithDynamicBody;
+            enemy.setScale(1.25);
+            enemy.setVelocityY(speed);
+            enemy.setImmovable(true);
+          }
+        }
+
+        handleCrash(player: any, enemy: any) {
+          console.log("Game over")
+          this.scene.pause()
         }
       }
 
